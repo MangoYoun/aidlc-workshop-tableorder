@@ -1,20 +1,21 @@
 """Utility functions for security and session management"""
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 import uuid
 from src.config import config
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+# Password hashing using bcrypt directly
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 # JWT token management
 def create_jwt_token(data: dict) -> str:

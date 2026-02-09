@@ -130,10 +130,23 @@ class MenuService:
     
     def get_menus_by_store(self, store_id: int):
         """Get available menus for a store"""
-        return self.db.query(Menu).filter(
+        from src.models import Category
+        
+        # Get menus
+        menus = self.db.query(Menu).filter(
             Menu.store_id == store_id,
             Menu.is_available == True
         ).order_by(Menu.category_id, Menu.display_order).all()
+        
+        # Get categories
+        categories = self.db.query(Category).filter(
+            Category.store_id == store_id
+        ).order_by(Category.display_order).all()
+        
+        return {
+            "menus": menus,
+            "categories": categories
+        }
     
     def create_menu(self, store_id: int, category_id: int, name: str, 
                    price: int, description: str = None, image_url: str = None):

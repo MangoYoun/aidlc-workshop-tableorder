@@ -10,20 +10,6 @@
         <form @submit.prevent="handleLogin">
           <div class="space-y-4">
             <div>
-              <label for="storeId" class="block text-sm font-medium text-gray-700 mb-1">
-                매장 ID
-              </label>
-              <input
-                id="storeId"
-                v-model="form.storeId"
-                type="number"
-                required
-                class="input"
-                placeholder="매장 ID를 입력하세요"
-              >
-            </div>
-
-            <div>
               <label for="tableNumber" class="block text-sm font-medium text-gray-700 mb-1">
                 테이블 번호
               </label>
@@ -33,7 +19,7 @@
                 type="text"
                 required
                 class="input"
-                placeholder="예: T01"
+                placeholder="예: 1"
               >
             </div>
 
@@ -81,7 +67,6 @@ const authStore = useAuthStore()
 const { showToast } = useToast()
 
 const form = ref({
-  storeId: '',
   tableNumber: '',
   password: ''
 })
@@ -95,7 +80,7 @@ const handleLogin = async () => {
 
   try {
     await authStore.login(
-      parseInt(form.value.storeId),
+      null, // store_id는 null로 전달 (Backend에서 자동 설정)
       form.value.tableNumber,
       form.value.password
     )
@@ -103,7 +88,7 @@ const handleLogin = async () => {
     showToast('로그인 성공', 'success')
     router.push('/menu')
   } catch (error) {
-    errorMessage.value = error.message
+    errorMessage.value = error.response?.data?.detail || error.message || '로그인 실패'
   } finally {
     loading.value = false
   }

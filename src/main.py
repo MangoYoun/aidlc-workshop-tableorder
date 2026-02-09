@@ -62,9 +62,9 @@ class AdminLoginRequest(BaseModel):
     password: str
 
 class TableLoginRequest(BaseModel):
-    store_id: int
     table_number: str
     password: str
+    store_id: Optional[int] = None
 
 class CreateMenuRequest(BaseModel):
     store_id: int
@@ -138,8 +138,22 @@ def admin_login(request: AdminLoginRequest, db: Session = Depends(get_db)):
 def table_login(request: TableLoginRequest, db: Session = Depends(get_db)):
     try:
         auth_service = AuthService(db)
-        token = auth_service.login_table(request.store_id, request.table_number, request.password)
-        return {"session_token": token, "expires_in": config.SESSION_EXPIRE_HOURS * 3600}
+        # If store_id not provided, use the first store
+        store_id = request.store_id
+        if store_id is None:
+            from src.models import Store
+            first_store = db.query(Store).first()
+            if not first_store:
+                raise HTTPException(status_code=404, detail="No store found")
+            store_id = first_store.id
+        
+        token = auth_service.login_table(store_id, request.table_number, request.password)
+        return {
+            "session_token": token, 
+            "expires_in": config.SESSION_EXPIRE_HOURS * 3600,
+            "store_id": store_id,
+            "table_number": request.table_number
+        }
     except AuthenticationError as e:
         raise HTTPException(status_code=401, detail=str(e))
     except AccountLockedError as e:
@@ -147,10 +161,46 @@ def table_login(request: TableLoginRequest, db: Session = Depends(get_db)):
 
 # Menu endpoints
 @app.get("/api/menus")
-def get_menus(store_id: int, db: Session = Depends(get_db)):
+def get_menus(store_id: int = None, db: Session = Depends(get_db)):
+    # If store_id not provided, use the first store
+    if store_id is None:
+        from src.models import Store
+        first_store = db.query(Store).first()
+        if not first_store:
+            raise HTTPException(status_code=404, detail="No store found")
+        store_id = first_store.id
+    
     menu_service = MenuService(db)
-    menus = menu_service.get_menus_by_store(store_id)
-    return menus
+    result = menu_service.get_menus_by_store(store_id)
+    
+    # Convert SQLAlchemy objects to dictionaries
+    menus_data = []
+    for menu in result["menus"]:
+        menus_data.append({
+            "id": menu.id,
+            "storeId": menu.store_id,
+            "categoryId": menu.category_id,
+            "name": menu.name,
+            "description": menu.description,
+            "price": menu.price,
+            "imageUrl": menu.image_url,
+            "displayOrder": menu.display_order,
+            "isAvailable": menu.is_available
+        })
+    
+    categories_data = []
+    for category in result["categories"]:
+        categories_data.append({
+            "id": category.id,
+            "storeId": category.store_id,
+            "name": category.name,
+            "displayOrder": category.display_order
+        })
+    
+    return {
+        "menus": menus_data,
+        "categories": categories_data
+    }
 
 @app.post("/api/admin/menus")
 def create_menu(

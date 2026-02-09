@@ -14,11 +14,13 @@ export const useMenuStore = defineStore('menu', () => {
     return menus.value.filter(menu => menu.categoryId === selectedCategoryId.value)
   })
 
-  const loadMenus = async (storeId) => {
+  const loadMenus = async (storeId = null) => {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get(`/api/menus?store_id=${storeId}`)
+      // If storeId is not provided or undefined, don't include it in the query
+      const url = storeId ? `/api/menus?store_id=${storeId}` : '/api/menus'
+      const response = await api.get(url)
       menus.value = response.data.menus || []
       categories.value = response.data.categories || []
       
